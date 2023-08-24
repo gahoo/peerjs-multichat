@@ -58,6 +58,10 @@
                                 <input :disabled="loading" id="username" type="text" v-model="usernameInput" />
                                 <label for="username">My username</label>
                             </div>
+                            <div class="input-field col s8">
+                                <input :disabled="loading" id="server" type="text" v-model="server" />
+                                <label for="server">Server</label>
+                            </div>
                             <button v-bind:class="{ disabled: loading }" class="btn-large waves-effect waves-light red col s4" type="submit">
                                 Login<i class="material-icons right">login</i>
                             </button>
@@ -120,7 +124,7 @@
                             <i class="material-icons">delete-sweep</i>
                         </button>
                         <div id="chatbox">
-                            <p v-for="chat in chats">{{ chat.sender }}: {{ chat.message }}</p>
+                            <p v-for="chat in chats">{{ chat.sender != usernameInput?chat.sender:"ME" }}: {{ chat.message }}</p>
                         </div>
                         <div class="row">
                             <form v-on:submit="submitChat">
@@ -150,6 +154,7 @@
             data: {
                 screen: "login", // initialize at login screen
                 usernameInput: localStorage.getItem("username"), // to load saved username
+                server: localStorage.getItem("server"),
                 peerError: "",
                 loading: false,
                 peer: {}, // initialize as empty object instead of undefined
@@ -258,11 +263,16 @@
                 },
                 createPeer: function () {
                     // options are useful in development to connect to local peerjs server
-                    this.peer = new Peer(this.getPeerId(this.usernameInput)/*, {
-                        host: 'localhost',
-                        port: 8080,
-                        path: 'app'
-                    }*/);
+                    if(this.server){
+                        const server = new URL(this.server)
+                        this.peer = new Peer(this.getPeerId(this.usernameInput), {
+                            host: server.hostname,
+                            port: server.port,
+                            path: server.pathname
+                        });
+		    }else{
+                        this.peer = new Peer(this.getPeerId(this.usernameInput));
+                    }
 
                     // when peer is connected to signaling server
                     this.peer.on("open", () => {
@@ -308,6 +318,7 @@
                         this.peerError = ""; // reset error status
 
                         localStorage.setItem("username", this.usernameInput); // set username cookie to instanciate it at the next session
+                        localStorage.setItem("server", this.server); // set server cookie to instanciate it at the next session
 
                         this.createPeer();
                     }
