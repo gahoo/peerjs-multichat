@@ -62,6 +62,14 @@
                                 <input :disabled="loading" id="signal_server" type="text" v-model="signal_server" />
                                 <label for="signal_server">Signal Server</label>
                             </div>
+                            <div class="input-field col s8">
+                                <input :disabled="loading" id="stun_server" type="text" v-model="stun_server" />
+                                <label for="stun_server">STUN Server</label>
+                            </div>
+                            <div class="input-field col s8">
+                                <input :disabled="loading" id="turn_server" type="text" v-model="turn_server" />
+                                <label for="turn_server">TURN Server</label>
+                            </div>
                             <button v-bind:class="{ disabled: loading }" class="btn-large waves-effect waves-light red col s4" type="submit">
                                 Login<i class="material-icons right">login</i>
                             </button>
@@ -155,6 +163,8 @@
                 screen: "login", // initialize at login screen
                 usernameInput: localStorage.getItem("username"), // to load saved username
                 signal_server: localStorage.getItem("signal_server"),
+                stun_server: localStorage.getItem("stun_server"),
+                turn_server: localStorage.getItem("turn_server"),
                 peerError: "",
                 loading: false,
                 peer: {}, // initialize as empty object instead of undefined
@@ -264,12 +274,23 @@
                 createPeer: function () {
                     // options are useful in development to connect to local peerjs server
                     if(this.signal_server){
-                        const signal_server = new URL(this.signal_server)
-                        this.peer = new Peer(this.getPeerId(this.usernameInput), {
+                        const signal_server = new URL(this.signal_server);
+                        const secure = signal_server.protocol == "https:";
+                        var options = {
                             host: signal_server.hostname,
                             port: signal_server.port,
-                            path: signal_server.pathname
-                        });
+                            path: signal_server.pathname,
+                            secure: secure
+                        };
+                        if(this.stun_server){
+                            options.config = {iceServers: [
+                                {urls: "stun:" + this.stun_server}
+                            ]}
+                        }
+                        if(this.turn_server){
+                            options.config.iceServers.push({urls: "turn:" + this.turn_server})
+                        }
+                        this.peer = new Peer(this.getPeerId(this.usernameInput), options)
 		    }else{
                         this.peer = new Peer(this.getPeerId(this.usernameInput));
                     }
@@ -318,7 +339,9 @@
                         this.peerError = ""; // reset error status
 
                         localStorage.setItem("username", this.usernameInput); // set username cookie to instanciate it at the next session
-                        localStorage.setItem("signal_server", this.signal_server); // set server cookie to instanciate it at the next session
+                        localStorage.setItem("signal_server", this.signal_server); // set signal server cookie to instanciate it at the next session
+                        localStorage.setItem("stun_server", this.stun_server); // set stun server cookie to instanciate it at the next session
+                        localStorage.setItem("turn_server", this.turn_server); // set turn server cookie to instanciate it at the next session
 
                         this.createPeer();
                     }
