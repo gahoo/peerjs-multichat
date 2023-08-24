@@ -116,6 +116,9 @@
 
                     <div class="col s12 m7">
                         <h4>Chatbox</h4>
+                        <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="cleanHistory">
+                            <i class="material-icons">delete-sweep</i>
+                        </button>
                         <div id="chatbox">
                             <p v-for="chat in chats">{{ chat.sender }}: {{ chat.message }}</p>
                         </div>
@@ -165,7 +168,11 @@
             watch: {
                 chats: function () {
                     const chatbox = document.getElementById("chatbox");
-                    if (chatbox) chatbox.scrollTop = 99999999; // to automatically scroll the chatbox to the most recent chat message
+                    if (chatbox) {
+                        window.setInterval(function(){
+                            chatbox.scrollTop = chatbox.scrollHeight;
+                        }, 100)
+                    } // to automatically scroll the chatbox to the most recent chat message
                 }
             },
             methods: {
@@ -189,6 +196,12 @@
                 },
                 disconnectPeer: function () {
                     this.peer.disconnect();
+                },
+                cleanHistory: function () {
+                    localStorage.setItem("chats", "");
+                    while(chatbox.firstChild) {
+                        chatbox.removeChild(chatbox.lastChild);
+                    }
                 },
 
                 // called to properly configure connection's client listeners
