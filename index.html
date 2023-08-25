@@ -290,7 +290,14 @@
                             ]}
                         }
                         if(this.turn_server){
-                            options.config.iceServers.push({urls: "turn:" + this.turn_server})
+                            const turn_server = this.turn_server.split('@')[1];
+                            const username = this.turn_server.split('@')[0].split(':')[0];
+                            const credential = this.turn_server.split('@')[0].split(':')[1];
+                            options.config.iceServers.push({
+                                urls: "turn:" + turn_server,
+                                username: username,
+                                credential: credential
+                            })
                         }
                         this.peer = new Peer(this.getPeerId(this.usernameInput), options)
 		    }else{
