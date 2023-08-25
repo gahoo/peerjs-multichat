@@ -32,6 +32,27 @@
                 margin: 0.18em;
             }
 
+            span.message {
+                max-width: 90%;
+                border-radius: 5px;
+                padding: 6px;
+                margin: 2px;
+                word-wrap: break-word;
+                display: inline-block;
+            }
+
+            span.me {
+                background-color: #95ec6a;
+            }
+            span.others {
+                background-color: white;
+            }
+
+	    p.me {
+                width: 100% !important;
+                text-align: right;
+	    }
+
             #chatbox {
                 height: 25rem;
                 text-align: left;
@@ -134,7 +155,7 @@
                             <i class="material-icons">delete-sweep</i>
                         </button>
                         <div id="chatbox">
-                            <p v-for="chat in chats">{{ chat.sender != usernameInput?chat.sender:"ME" }}: {{ chat.message }}</p>
+                            <p v-for="chat in chats" :class="chat.type" >{{ chat.sender == usernameInput ? "" : chat.sender + ": " }}<span :class="'message ' + chat.type">{{ chat.message }}</span></p>
                         </div>
                         <div class="row">
                             <form v-on:submit="submitChat">
@@ -362,6 +383,7 @@
                     this.initiateConnection(peerId);
                 },
                 receiveChat: function (chat) {
+                    chat.type = chat.sender != this.usernameInput?"others":"me" 
                     this.chats.push(chat);
                     localStorage.setItem("chats", JSON.stringify(this.chats));
                 },
