@@ -10,6 +10,7 @@
 	<!--<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>-->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.7.14/vue.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/7.0.5/marked.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js"></script>
 
         <!-- Integrate font styles -->
         <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display&display=swap" rel="stylesheet">
@@ -386,7 +387,8 @@
                 },
                 receiveChat: function (chat) {
                     chat.type = chat.sender != this.usernameInput?"others":"me";
-                    chat.html = marked.parse(chat.message);
+                    chat.html = DOMPurify.sanitize(marked.parse(chat.message), {SAFE_FOR_TEMPLATES: true, ALLOWED_TAGS: ['iframe', 'h1', 'h2', 'img', 'p']});
+                    //chat.html = marked.parse(chat.message);
                     this.chats.push(chat);
                     localStorage.setItem("chats", JSON.stringify(this.chats));
                 },
