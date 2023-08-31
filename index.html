@@ -43,6 +43,10 @@
                 display: inline-block;
             }
 
+            span.message > i {
+                color: #2196f3;
+            }
+
             span.me {
                 background-color: #95ec6a;
                 text-align: left;
@@ -64,6 +68,10 @@
                 overflow-y: scroll;
             }
 
+            #chatbox.dragover {
+                background: #ebdcdca3;
+                border: 1px dashed;
+            }
             .row {
                 width: 100%;
                 margin: 0;
@@ -161,7 +169,7 @@
                             <i class="material-icons">delete-sweep</i>
                         </button>
                         <div class = "file-field input-field">
-                            <div class = "btn-floating btn-xs waves-effect waves-light blue left">
+                            <div id="upload-btn" class = "btn-floating btn-xs waves-effect waves-light blue left">
                                 <input type="file" multiple v-on:change="submitFile">
                                 <i class="material-icons">upload</i>
                             </div>
@@ -169,7 +177,7 @@
                                 <input class="file-path validate" type="text">
                             </div>
                         </div>
-                        <div id="chatbox" >
+                        <div id="chatbox" @drop="submitFile" @dragover.prevent="addDragover" @dragleave.prevent="removeDragover">
                             <p v-for="chat in chats" :class="chat.type" >{{ chat.sender == usernameInput ? "" : chat.sender + ": " }}<span :class="'message ' + chat.type" v-html="chat.html">{{ chat.message }}</span></p>
                         </div>
                         <div class="row">
@@ -410,7 +418,7 @@
                 receiveFile: function (chat) {
                     chat.type = chat.sender != this.usernameInput?"others":"me";
                     const blob = new Blob([chat.file.content]);
-                    chat.html = "<a href='" + URL.createObjectURL(blob) + "' download='" + chat.file.name + "'>" + chat.file.name + "</a>";
+                    chat.html = "<i class='material-icons waves-effect'>download_for_offline</i><a href='" + URL.createObjectURL(blob) + "' download='" + chat.file.name + "'>" + chat.file.name + "</a>";
                     this.chats.push(chat);
                     localStorage.setItem("chats", JSON.stringify(this.chats));
                 },
@@ -432,9 +440,23 @@
                         this.chatMessageInput = ""; // reset chat message input
                     }
                 },
+                addDragover: function(event){
+                    event.target.classList.add('dragover');
+                },
+                removeDragover: function(event){
+                    event.target.classList.remove('dragover');
+                },
                 submitFile: function (event) {
                     event.preventDefault(); // to prevent default behavior which is to POST to the same page
-                    Array.from(event.target.files).forEach(file => {
+
+                    if(event instanceof DragEvent){
+                        this.removeDragover(event);
+                        var file_list = event.dataTransfer.files;
+                    }else{
+                        var file_list = event.target.files;
+                    }
+
+                    Array.from(file_list).forEach(file => {
                         this.readFile(file).then(result => {
                             const file = {
                                 sender: this.usernameInput,
@@ -452,6 +474,12 @@
                         const reader = new FileReader();
                         reader.onloadend = function(event){
                             resolve({name: file.name, size: file.size, type: file.type, content: event.target.result});
+                        }
+                        reader.onprogress = function(event){
+                            if(event.loaded && event.total){
+                                const percent = (1 - (event.loaded / event.total)) * 100;
+                                document.querySelector('#upload-btn').style.background = 'linear-gradient(#bac1c7 ' + percent + '%, #2196f3 0%)'
+                            }
                         }
                         //reader.readAsDataURL(file);
                         reader.readAsArrayBuffer(file);
