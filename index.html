@@ -69,6 +69,9 @@
                 margin: 0;
                 padding: 0 2em;
             }
+            .file-field .file-path-wrapper{
+                width: 0%
+            }
         </style>
     </head>
 
@@ -157,13 +160,22 @@
                         <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="cleanHistory">
                             <i class="material-icons">delete-sweep</i>
                         </button>
-                        <div id="chatbox">
+                        <div class = "file-field input-field">
+                            <div class = "btn-floating btn-xs waves-effect waves-light blue left">
+                                <input type="file" multiple v-on:change="submitFile">
+                                <i class="material-icons">upload</i>
+                            </div>
+                            <div class="file-path-wrapper">
+                                <input class="file-path validate" type="text">
+                            </div>
+                        </div>
+                        <div id="chatbox" >
                             <p v-for="chat in chats" :class="chat.type" >{{ chat.sender == usernameInput ? "" : chat.sender + ": " }}<span :class="'message ' + chat.type" v-html="chat.html">{{ chat.message }}</span></p>
                         </div>
                         <div class="row">
                             <form v-on:submit="submitChat">
-                                <div class="input-field col s10">
-					<textarea id="chat_message" class="materialize-textarea" v-model="chatMessageInput" @keydown.enter.exact.prevent="submitChat" ></textarea>
+                                <div class="input-field col s11">
+                                    <textarea id="chat_message" class="materialize-textarea" v-model="chatMessageInput" @keydown.enter.exact.prevent="submitChat" ></textarea>
                                     <label for="chat_message">Your message</label>
                                 </div>
                                 <button class="btn-floating btn-large waves-effect waves-light red" type="submit">
@@ -257,6 +269,8 @@
                             });
                         } else if (data.type === "chat") {
                             this.receiveChat(data.chat);
+                        } else if (data.type === "file") {
+                            this.receiveFile(data.file);
                         }
                         // please note here that if data.type is undefined, this endpoint won't do anything!
                     });
@@ -283,7 +297,8 @@
                                 // if the caller has peers, we send them to merge calls
                                 peerIds: this.peerIds
                             },
-                            serialization: "json"
+                            serialization: "binary",
+                            reliable: true
                         };
                         const conn = this.peer.connect(peerId, options);
                         this.configureConnection(conn);
@@ -392,6 +407,13 @@
                     this.chats.push(chat);
                     localStorage.setItem("chats", JSON.stringify(this.chats));
                 },
+                receiveFile: function (chat) {
+                    chat.type = chat.sender != this.usernameInput?"others":"me";
+                    const blob = new Blob([chat.file.content]);
+                    chat.html = "<a href='" + URL.createObjectURL(blob) + "' download='" + chat.file.name + "'>" + chat.file.name + "</a>";
+                    this.chats.push(chat);
+                    localStorage.setItem("chats", JSON.stringify(this.chats));
+                },
                 submitChat: function (event) {
                     event.preventDefault(); // to prevent default behavior which is to POST to the same page
 
@@ -405,15 +427,40 @@
 
                         this.receiveChat(chat); // simulate receiving a chat
                         // send chat object to connected users
-                        Object.values(this.connections).forEach(conn => {
-                            conn.send({
-                                type: "chat",
-                                chat
-                            });
-                        });
+                        this.send({type: "chat", chat})
 
                         this.chatMessageInput = ""; // reset chat message input
                     }
+                },
+                submitFile: function (event) {
+                    event.preventDefault(); // to prevent default behavior which is to POST to the same page
+                    Array.from(event.target.files).forEach(file => {
+                        this.readFile(file).then(result => {
+                            const file = {
+                                sender: this.usernameInput,
+                                file: result,
+                                timestamp: new Date().getTime()
+                            };
+
+                            this.receiveFile(file); // simulate receiving a file
+                            this.send({type: "file", file})
+                        });
+                    });
+                },
+                readFile: function(file){
+                    return new Promise(resolve => {
+                        const reader = new FileReader();
+                        reader.onloadend = function(event){
+                            resolve({name: file.name, size: file.size, type: file.type, content: event.target.result});
+                        }
+                        //reader.readAsDataURL(file);
+                        reader.readAsArrayBuffer(file);
+                    });
+                },
+                send: function(data){
+                    Object.values(this.connections).forEach(conn => {
+                        conn.send(data);
+                    });
                 }
             }
         });
