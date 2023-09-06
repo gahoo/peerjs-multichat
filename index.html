@@ -47,6 +47,10 @@
                 color: #2196f3;
             }
 
+            span.message img {
+                max-width: 45vw;
+            }
+
             span.me {
                 background-color: #95ec6a;
                 text-align: left;
@@ -236,6 +240,10 @@
                     if (chatbox) {
                         window.setTimeout(function(){
                             chatbox.scrollTop = chatbox.scrollHeight;
+
+                            const new_imgs = chatbox.lastChild.querySelectorAll('img');
+                            new_imgs.forEach(x => x.classList.add('materialboxed'));
+                            M.Materialbox.init(new_imgs);
                         }, 100)
                     } // to automatically scroll the chatbox to the most recent chat message
                 }
@@ -253,6 +261,7 @@
                     console.log(`Connected to ${conn.peer}!`);
                 },
                 removeConnection: function (conn) {
+                    M.toast({html: 'Disconnected with ' + conn.peer.replace(appPrefix, ''), classes: "deep-orange rounded"});
                     delete this.connections[conn.peer];
                     this.updatePeerIds();
                 },
