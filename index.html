@@ -443,7 +443,7 @@
                             // send chat object to connected users
                             this.send({type: "chat", chat});
                             this.chatMessageInput = ""; // reset chat message input
-                            document.querySelector('#chat_message + label').style.color = ''
+                            document.querySelector('#chat_message + label').classList.remove('red-text')
                         });
 
                     }
@@ -491,20 +491,18 @@
                 image2base64: async function(chat){
                     const MARKDOWN_IMG = /!\[.*?\]\((.*?)\)/mg;
                     const HTML_IMG = /<img .*src=['"](.*?)['"].*>/mg;
-                    let matcher;
-                    let base64;
-                    let url;
-                    let img_count = 0;
-                    let percent = 0;
-                    const total_img = chat.message.match(HTML_IMG).length;
-                    while ((matcher = HTML_IMG.exec(chat.message)) !== null) {
-                        url = matcher[1]
-                        base64 = await this.url2base64(url);
-                        chat.message = chat.message.replace(url, base64);
-                        img_count++;
-                        percent = Math.round(img_count / total_img * 100);
+                    var urls = [MARKDOWN_IMG, HTML_IMG].map(function (regex) {
+                        const matches = [...chat.message.matchAll(regex)];
+                        return(matches.map(x => x[1]))
+                    }).flat()
+                    urls = [... new Set(urls)]
+                    for (i in urls){
+                        base64 = await this.url2base64(urls[i]);
+                        chat.message = chat.message.replace(urls[i], base64);
+                        percent = Math.round(i / urls.length * 100);
                         document.querySelector('#chat_message + label').style.background = 'linear-gradient(90deg, #9eded8 ' + percent + '%, #ecf0f1 0%)';
                     }
+
                     document.querySelector('#chat_message + label').style.background = '';
                     return(chat)
                 },
@@ -514,8 +512,8 @@
                     try{
                         response = await fetch(url);
                     } catch (error){
-                        document.querySelector('#chat_message + label').style.color = 'red'
-                        console.log(error.message + url);
+                        document.querySelector('#chat_message + label').classList.add('red-text')
+                        M.toast({html: error.message + ' ' + url, classes: "deep-orange rounded"});
                         throw error;
                         //return(url);
                     }
