@@ -206,6 +206,7 @@
 
         const oldChats = localStorage.getItem("chats");
         const chats = oldChats ? JSON.parse(oldChats) : []; // oldChats may be undefined, which throws error if passed into JSON.parse
+        const message_audio = new Audio('/assets/bubble.wav');
 
         const app = new Vue({
             el: "#app",
@@ -243,6 +244,7 @@
                                 x.classList.add('responsive-img')
                             });
                             M.Materialbox.init(new_imgs);
+                            message_audio.play();
                         }, 100)
                     } // to automatically scroll the chatbox to the most recent chat message
                 }
