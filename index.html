@@ -230,9 +230,18 @@
                         <div id="chatbox" @drop="submitFile" @dragover.prevent="addDragover" @dragleave.prevent="removeDragover">
                             <p v-for="chat in chats" :class="chat.who" >
                                 {{ chat.sender == usernameInput ? "" : chat.sender + ": " }}
-                                <span :class="'message ' + chat.who" v-if="chat.type === 'text'">{{ chat.message }}</span>
-                                <span :class="'message ' + chat.who" v-else-if="chat.type === 'markdown'" v-html="chat.html"></span>
-                                <span :class="'message ' + chat.who" v-else-if="chat.type === 'file'" ><i class='material-icons waves-effect'>download_for_offline</i><a :href="chat.href" :download="chat.file.name">{{ chat.file.name }}</a></span>
+                                <span :class="'message ' + chat.who" :data-timestamp=chat.timestamp v-if="chat.type === 'text'">{{ chat.message }}</span>
+                                <span :class="'message ' + chat.who" :data-timestamp=chat.timestamp v-else-if="chat.type === 'markdown'" v-html="chat.html"></span>
+                                <span :class="'message ' + chat.who" :data-timestamp=chat.timestamp v-else-if="chat.type === 'file'" >
+                                    <img :src="chat.href" :alt="chat.file.name" v-if="chat.file.type.startsWith('image/')"></img>
+                                    <video class="responsive-video" controls v-else-if="chat.file.type.startsWith('video/')">
+                                        <source :src="chat.href" :type="chat.file.type">
+                                    </video>
+                                    <audio class="responsive-video" controls v-else-if="chat.file.type.startsWith('audio/')">
+                                        <source :src="chat.href" :type="chat.file.type">
+                                    </audio>
+                                    <i class='material-icons waves-effect'>download_for_offline</i><a :href="chat.href" :download="chat.file.name">{{ chat.file.name }}</a>
+                                </span>
                             </p>
                         </div>
                         <div class="row">
@@ -608,6 +617,8 @@
                             this.send({type: "file", file})
                         });
                     });
+
+                    if(event.target) {event.target.value = null;}
                 },
                 readFile: function(file, as='readAsArrayBuffer'){ // readAsDataURL is base64 encoded
                     return new Promise(resolve => {
