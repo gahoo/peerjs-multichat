@@ -147,6 +147,11 @@
                                     <em v-if="peerError" style="color: red">{{ peerError }}</em>
                                 </div>
                             </div>
+                            <div v-else>
+                                <button class="btn-large waves-effect waves-light red col s12" v-on:click="reconnectPeer">
+                                    Reconnect to server<i class="material-icons right">login</i>
+                                </button>
+                            </div>
                             <div v-else class="container">
                                 <h5>You are disconnected!</h5>
                                 <em>You can still talk to connected users, but won't be able to reach or be reached by any new user!</em>
@@ -305,10 +310,10 @@
                                 x.classList.add('responsive-img')
                             });
                             M.Materialbox.init(new_imgs);
-                            // Play Audio
-                            message_audio.play();
                             // Scroll to bottom
                             chatbox.scrollTop = chatbox.scrollHeight;
+                            // Play Audio
+                            message_audio.play();
                         }, 200)
                     } // to automatically scroll the chatbox to the most recent chat message
                 },
@@ -339,6 +344,9 @@
                 updatePeerIds: function () {
                     this.peerIds = Object.keys(this.connections);
                     localStorage.setItem('peerIds', this.peerIds)
+                },
+                reconnectPeer: function () {
+                    this.peer.reconnect();
                 },
                 disconnectPeer: function () {
                     this.peer.disconnect();
