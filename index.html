@@ -153,6 +153,48 @@
                             </div>
 
                             <div class="col s12">
+                                <div class="switch">
+                                  <label>
+                                      Markdown
+                                      <input type="checkbox" v-model="markdown">
+                                      <span class="lever"></span>
+                                  </label>
+                                  <label>
+                                      Sanitize
+                                      <input type="checkbox" v-model="sanitize">
+                                      <span class="lever"></span>
+                                  </label>
+                                  <label>
+                                      Base64
+                                      <input type="checkbox" v-model="convert_base64">
+                                      <span class="lever"></span>
+                                  </label>
+                                  <label>
+                                      History
+                                      <input type="checkbox" v-model="save_history">
+                                      <span class="lever"></span>
+                                  </label>
+                                </div>
+                                <div class="switch">
+                                  <label>
+                                      Receive File
+                                      <input type="checkbox" v-model="receive_file">
+                                      <span class="lever"></span>
+                                  </label>
+                                  <label>
+                                      Auto Login
+                                      <input type="checkbox" v-model="auto_login">
+                                      <span class="lever"></span>
+                                  </label>
+                                  <label>
+                                      Reconnect on Login
+                                      <input type="checkbox" v-model="reconnect_on_login">
+                                      <span class="lever"></span>
+                                  </label>
+                                </div>
+                            </div>
+
+                            <div class="col s12">
                                 <h4>Connected users</h4>
                                 <p><i class="material-icons">portrait</i>{{ usernameInput }}</p>
                                 <p v-for="peerId in peerIds">
@@ -167,6 +209,9 @@
                             <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="cleanHistory">
                                 <i class="material-icons">delete-sweep</i>
                             </button>
+                            <button class="btn-floating waves-effect waves-light btn right" v-on:click="exportHistory">
+                                <i class="material-icons right">save</i>
+                            </button>
                             <div class = "file-field input-field">
                                 <div id="upload-btn" class = "btn-floating btn-xs waves-effect waves-light blue left">
                                     <input type="file" multiple v-on:change="submitFile">
@@ -180,7 +225,8 @@
                         <div id="chatbox" @drop="submitFile" @dragover.prevent="addDragover" @dragleave.prevent="removeDragover">
                             <p v-for="chat in chats" :class="chat.who" >
                                 {{ chat.sender == usernameInput ? "" : chat.sender + ": " }}
-                                <span :class="'message ' + chat.who" v-if="chat.type === 'text'" v-html="chat.html">{{ chat.message }}</span>
+                                <span :class="'message ' + chat.who" v-if="chat.type === 'text'">{{ chat.message }}</span>
+                                <span :class="'message ' + chat.who" v-else-if="chat.type === 'markdown'" v-html="chat.html"></span>
                                 <span :class="'message ' + chat.who" v-else-if="chat.type === 'file'" ><i class='material-icons waves-effect'>download_for_offline</i><a :href="chat.href" :download="chat.file.name">{{ chat.file.name }}</a></span>
                             </p>
                         </div>
@@ -206,7 +252,16 @@
 
         const oldChats = localStorage.getItem("chats");
         const chats = oldChats ? JSON.parse(oldChats) : []; // oldChats may be undefined, which throws error if passed into JSON.parse
+        const oldPeerIds = localStorage.getItem("peerIds") ? localStorage.getItem("peerIds").split(',') : [];
         const message_audio = new Audio('/assets/bubble.wav');
+        function configSaver(name, mutually_exclusive=null){
+            return function() {
+                localStorage.setItem(name, this[name]);
+                if(mutually_exclusive !== null && this[mutually_exclusive]){
+                    this[mutually_exclusive] = !this[name]
+                }
+            }
+        }
 
         const app = new Vue({
             el: "#app",
@@ -222,32 +277,47 @@
                 targetIdInput: "",
                 peerIds: [], // connected to nobody at first
                 connections: {}, // maps peerIds to their correspondig PeerJS's DataConnection objects
+                markdown: localStorage.getItem("markdown") === 'false' ? false : true,
+                sanitize: localStorage.getItem("sanitize") === 'true' ? true : false,
+                convert_base64: localStorage.getItem("convert_base64") === 'true' ? true : false,
+                save_history: localStorage.getItem("save_history") === 'false' ? false : true,
+                receive_file: localStorage.getItem("receive_file") === 'false' ? false : true,
+                auto_login: localStorage.getItem("auto_login") === 'true' ? true : false,
+                reconnect_on_login: localStorage.getItem("reconnect_on_login") === 'true' ? true : false,
                 chats,
                 chatMessageInput: ""
             },
             // in case you want to enable automatic login
-            /*mounted: function () {
-                if (this.usernameInput && this.usernameInput.length > 0) {
+            mounted: function () {
+                if (this.auto_login && this.usernameInput && this.usernameInput.length > 0) {
                     this.submitLogin();
                 }
-            },*/
+            },
             watch: {
                 chats: function () {
                     const chatbox = document.getElementById("chatbox");
                     if (chatbox) {
                         window.setTimeout(function(){
-                            chatbox.scrollTop = chatbox.scrollHeight;
-
+                            // Format Images
                             const new_imgs = chatbox.lastChild.querySelectorAll('img');
                             new_imgs.forEach(x => {
                                 x.classList.add('materialboxed')
                                 x.classList.add('responsive-img')
                             });
                             M.Materialbox.init(new_imgs);
+                            // Play Audio
                             message_audio.play();
-                        }, 100)
+                            // Scroll to bottom
+                            chatbox.scrollTop = chatbox.scrollHeight;
+                        }, 200)
                     } // to automatically scroll the chatbox to the most recent chat message
-                }
+                },
+                markdown: configSaver('markdown'),
+                sanitize: configSaver('sanitize', 'convert_base64'),
+                convert_base64: configSaver('convert_base64', 'sanitize'),
+                save_history: configSaver('save_history'),
+                auto_login: configSaver('auto_login'),
+                reconnect_on_login: configSaver('reconnect_on_login')
             },
             methods: {
                 // util functions to convert username to peer ids and vice-versa
@@ -268,6 +338,7 @@
                 },
                 updatePeerIds: function () {
                     this.peerIds = Object.keys(this.connections);
+                    localStorage.setItem('peerIds', this.peerIds)
                 },
                 disconnectPeer: function () {
                     this.peer.disconnect();
@@ -276,6 +347,22 @@
                     localStorage.setItem("chats", "");
                     while(chatbox.firstChild) {
                         chatbox.removeChild(chatbox.lastChild);
+                    }
+                },
+                exportHistory: function () {
+                    let export_link = document.createElement('a');
+                    let content = encodeURIComponent(JSON.stringify((this.chats)));
+                    export_link.setAttribute('href', 'data:text/plain;charset=utf-8,' + content)
+                    export_link.setAttribute('download', new Date().toISOString() + '.json');
+                    export_link.click();
+                },
+                connectPeersOnLogin: function(){
+                    if (this.reconnect_on_login && oldPeerIds.length > 0){
+                        oldPeerIds.forEach(peerId => {
+                            this.targetIdInput = peerId.replace(appPrefix, '');
+                            M.toast({html: 'Connecting to ' + this.targetIdInput, classes: "light-blue darken-4 rounded"});
+                            this.initiateConnection(peerId);
+                        });
                     }
                 },
 
@@ -291,7 +378,7 @@
                             });
                         } else if (data.type === "chat") {
                             this.receiveChat(data.chat);
-                        } else if (data.type === "file") {
+                        } else if (this.receive_file && data.type === "file") {
                             this.receiveFile(data.file);
                         }
                         // please note here that if data.type is undefined, this endpoint won't do anything!
@@ -367,6 +454,7 @@
 
                     // when peer is connected to signaling server
                     this.peer.on("open", () => {
+                        this.connectPeersOnLogin();
                         this.screen = "chat"; // changing screen
                         this.loading = false;
                         this.peerError = "";
@@ -424,10 +512,17 @@
                 },
                 receiveChat: function (chat) {
                     chat.who = chat.sender != this.usernameInput?"others":"me";
-                    //chat.html = DOMPurify.sanitize(marked.parse(chat.message), {SAFE_FOR_TEMPLATES: true, ALLOWED_TAGS: ['iframe', 'h1', 'h2', 'img', 'p']});
-                    chat.html = marked.parse(chat.message);
+                    if(this.markdown){
+                        chat.html = marked.parse(chat.message);
+                        chat.type = "markdown";
+                        if(this.sanitize){
+                            chat.html = DOMPurify.sanitize(chat.html, {SAFE_FOR_TEMPLATES: true, ALLOWED_TAGS: ['iframe', 'h1', 'h2', 'img', 'p']});
+                        }
+                    }
                     this.chats.push(chat);
-                    localStorage.setItem("chats", JSON.stringify(this.chats));
+                    if(this.save_history){
+                        localStorage.setItem("chats", JSON.stringify(this.chats));
+                    }
                 },
                 receiveFile: function (chat) {
                     chat.who = chat.sender != this.usernameInput?"others":"me";
@@ -448,14 +543,19 @@
                             timestamp: new Date().getTime()
                         };
 
-                        this.image2base64(chat).then(chat => {
+                        if(this.convert_base64){
+                            this.image2base64(chat).then(chat => {
+                                this.receiveChat(chat); // simulate receiving a chat
+                                // send chat object to connected users
+                                this.send({type: "chat", chat});
+                                this.chatMessageInput = ""; // reset chat message input
+                                document.querySelector('#chat_message + label').classList.remove('red-text')
+                            });
+                        }else{
                             this.receiveChat(chat); // simulate receiving a chat
-                            // send chat object to connected users
                             this.send({type: "chat", chat});
                             this.chatMessageInput = ""; // reset chat message input
-                            document.querySelector('#chat_message + label').classList.remove('red-text')
-                        });
-
+                        }
                     }
                 },
                 submitFile: function (event) {
@@ -506,6 +606,7 @@
                         return(matches.map(x => x[1]))
                     }).flat()
                     urls = [... new Set(urls)]
+                    document.querySelector('#upload-btn').classList.add('pulse')
                     for (i in urls){
                         base64 = await this.url2base64(urls[i]);
                         chat.message = chat.message.replace(urls[i], base64);
@@ -514,11 +615,13 @@
                     }
 
                     document.querySelector('#chat_message + label').style.background = '';
+                    document.querySelector('#upload-btn').classList.remove('pulse')
                     return(chat)
                 },
                 url2base64: async function(url){
                     let response;
                     console.log('converting ' + url + ' to base64.');
+                    M.toast({html: 'converting ' + url + ' to base64.', classes: "light-blue darken-4 rounded"});
                     try{
                         response = await fetch(url);
                     } catch (error){
