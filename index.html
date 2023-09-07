@@ -259,6 +259,7 @@
         const chats = oldChats ? JSON.parse(oldChats) : []; // oldChats may be undefined, which throws error if passed into JSON.parse
         const oldPeerIds = localStorage.getItem("peerIds") ? localStorage.getItem("peerIds").split(',') : [];
         const message_audio = new Audio('/assets/bubble.wav');
+        const url_prams = Object.fromEntries(new URLSearchParams(window.location.search).entries())
         function configSaver(name, mutually_exclusive=null){
             return function() {
                 localStorage.setItem(name, this[name]);
@@ -294,6 +295,15 @@
             },
             // in case you want to enable automatic login
             mounted: function () {
+                for (key in url_prams) {
+                    if (['usernameInput', 'signal_server', 'stun_server', 'turn_server'].indexOf(key) >= 0){
+                        this[key] = url_prams[key];
+                    }
+                    if (['auto_login', 'reconnect_on_login'].indexOf(key) >= 0){
+                        this[key] = url_prams[key] === 'true' ? true : false;
+                    }
+                }
+
                 if (this.auto_login && this.usernameInput && this.usernameInput.length > 0) {
                     this.submitLogin();
                 }
@@ -335,9 +345,10 @@
                     this.updatePeerIds();
 
                     console.log(`Connected to ${conn.peer}!`);
+                    M.toast({html: `Connected to ${conn.peer.replace(appPrefix, '')}...`, classes: "light-green darken-2 rounded"});
                 },
                 removeConnection: function (conn) {
-                    M.toast({html: 'Disconnected with ' + conn.peer.replace(appPrefix, ''), classes: "deep-orange rounded"});
+                    M.toast({html: 'Disconnected with ' + conn.peer.replace(appPrefix, ''), classes: "amber accent-4 rounded"});
                     delete this.connections[conn.peer];
                     this.updatePeerIds();
                 },
@@ -364,13 +375,19 @@
                     export_link.setAttribute('download', new Date().toISOString() + '.json');
                     export_link.click();
                 },
+                connectPeers: function(peerIds){
+                    peerIds.forEach(peerId => {
+                        this.targetIdInput = peerId.replace(appPrefix, '');
+                        this.initiateConnection(peerId);
+                    });
+                },
                 connectPeersOnLogin: function(){
                     if (this.reconnect_on_login && oldPeerIds.length > 0){
-                        oldPeerIds.forEach(peerId => {
-                            this.targetIdInput = peerId.replace(appPrefix, '');
-                            M.toast({html: 'Connecting to ' + this.targetIdInput, classes: "light-blue darken-4 rounded"});
-                            this.initiateConnection(peerId);
-                        });
+                        this.connectPeers(oldPeerIds)
+                    }
+                    if (url_prams.talkto) {
+                        const newPeerIds = url_prams.talkto.split(',').map(x => appPrefix + x)
+                        this.connectPeers(newPeerIds)
                     }
                 },
 
@@ -408,6 +425,7 @@
                         this.peerError = "";
 
                         console.log(`Connecting to ${peerId}...`);
+                        M.toast({html: `Connecting to ${peerId.replace(appPrefix, '')}...`, classes: "light-blue darken-4 rounded"});
 
                         const options = {
                             metadata: {
@@ -477,6 +495,7 @@
                             this.loading = false;
                             this.peerError = `${this.usernameInput} is already taken!`; // custom error message
                         } else this.peerError = error; // default error message
+                        M.toast({html: this.peerError, classes: "deep-orange rounded"});
                     });
 
                     // when peer receives a connection
