@@ -234,9 +234,9 @@
                         <div id="chatbox" @drop="submitFile" @dragover.prevent="addDragover" @dragleave.prevent="removeDragover">
                             <p v-for="chat in chats" :class="chat.who" >
                                 {{ chat.sender == usernameInput ? "" : chat.sender + ": " }}
-                                <span :class="'message markdown ' + chat.who" :data-timestamp=chat.timestamp v-if="chat.html !== undefined" v-html="chat.html"></span>
-                                <span :class="'message text ' + chat.who" :data-timestamp=chat.timestamp v-else-if="chat.type === 'text'">{{ chat.message }}</span>
-                                <span :class="'message file ' + chat.who" :data-timestamp=chat.timestamp v-else-if="chat.type === 'file'" >
+                                <span class="message markdown" :class="[chat.who, {pulse: chat.who == 'me'}]" :data-timestamp=chat.timestamp v-if="chat.html !== undefined" v-html="chat.html"></span>
+                                <span class="message text" :class="[chat.who, {pulse: chat.who == 'me'}]" :data-timestamp=chat.timestamp v-else-if="chat.type === 'text'">{{ chat.message }}</span>
+                                <span class="message file" :class="[chat.who, {pulse: chat.who == 'me'}]" :data-timestamp=chat.timestamp v-else-if="chat.type === 'file'" >
                                     <img :src="chat.href" :alt="chat.file.name" v-if="chat.file.type.startsWith('image/')"></img>
                                     <video class="responsive-video" controls v-else-if="chat.file.type.startsWith('video/')">
                                         <source :src="chat.href" :type="chat.file.type">
@@ -418,6 +418,8 @@
                             this.receiveChat(data.chat);
                         } else if (this.receive_file && data.type === "file") {
                             this.receiveFile(data.file);
+                        } else if (data.type === "receipt") {
+                            this.receiveReceipt(data.receipt.timestamp);
                         }
                         // please note here that if data.type is undefined, this endpoint won't do anything!
                     });
@@ -562,6 +564,7 @@
                     if(this.save_history){
                         localStorage.setItem("chats", JSON.stringify(this.chats));
                     }
+                    this.submitReceipt(chat)
                 },
                 receiveFile: function (chat) {
                     chat.who = chat.sender != this.usernameInput?"others":"me";
@@ -571,6 +574,11 @@
                     if(this.save_history){
                         localStorage.setItem("chats", JSON.stringify(this.chats));
                     }
+                    this.submitReceipt(chat)
+                },
+                receiveReceipt: function (timestamp) {
+                    const chat = document.querySelector(`span.me[data-timestamp="${timestamp}"]`)
+                    chat.classList.remove('pulse')
                 },
                 submitChat: async function (event) {
                     event.preventDefault(); // to prevent default behavior which is to POST to the same page
@@ -624,6 +632,17 @@
                     });
 
                     if(event.target) {event.target.value = null;}
+                },
+                submitReceipt: function (chat) {
+                    if(chat.who == 'me'){
+                        return
+                    }
+
+                    const receipt = {
+                        sender: this.usernameInput,
+                        timestamp: chat.timestamp
+                    };
+                    this.send({type: "receipt", receipt})
                 },
                 readFile: function(file, as='readAsArrayBuffer'){ // readAsDataURL is base64 encoded
                     return new Promise(resolve => {
