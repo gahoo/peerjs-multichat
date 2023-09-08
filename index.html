@@ -234,8 +234,8 @@
                         <div id="chatbox" @drop="submitFile" @dragover.prevent="addDragover" @dragleave.prevent="removeDragover">
                             <p v-for="chat in chats" :class="chat.who" >
                                 {{ chat.sender == usernameInput ? "" : chat.sender + ": " }}
-                                <span :class="'message ' + chat.who" :data-timestamp=chat.timestamp v-if="chat.type === 'text'">{{ chat.message }}</span>
-                                <span :class="'message ' + chat.who" :data-timestamp=chat.timestamp v-else-if="chat.type === 'markdown'" v-html="chat.html"></span>
+                                <span :class="'message ' + chat.who" :data-timestamp=chat.timestamp v-if="chat.html !== undefined" v-html="chat.html"></span>
+                                <span :class="'message ' + chat.who" :data-timestamp=chat.timestamp v-else-if="chat.type === 'text'">{{ chat.message }}</span>
                                 <span :class="'message ' + chat.who" :data-timestamp=chat.timestamp v-else-if="chat.type === 'file'" >
                                     <img :src="chat.href" :alt="chat.file.name" v-if="chat.file.type.startsWith('image/')"></img>
                                     <video class="responsive-video" controls v-else-if="chat.file.type.startsWith('video/')">
@@ -554,7 +554,6 @@
                     chat.who = chat.sender != this.usernameInput?"others":"me";
                     if(this.markdown){
                         chat.html = marked.parse(chat.message);
-                        chat.type = "markdown";
                         if(this.sanitize){
                             chat.html = DOMPurify.sanitize(chat.html, {SAFE_FOR_TEMPLATES: true, ALLOWED_TAGS: ['iframe', 'h1', 'h2', 'img', 'p']});
                         }
