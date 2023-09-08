@@ -569,7 +569,9 @@
                     chat.blob = new Blob([chat.file.content]);
                     chat.href = URL.createObjectURL(chat.blob);
                     this.chats.push(chat);
-                    localStorage.setItem("chats", JSON.stringify(this.chats));
+                    if(this.save_history){
+                        localStorage.setItem("chats", JSON.stringify(this.chats));
+                    }
                 },
                 submitChat: async function (event) {
                     event.preventDefault(); // to prevent default behavior which is to POST to the same page
