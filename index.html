@@ -231,7 +231,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div id="chatbox" @drop="submitFile" @dragover.prevent="addDragover" @dragleave.prevent="removeDragover">
+                        <div id="chatbox" @drop.prevent="submitFile" @dragover.prevent="addDragover" @dragleave.prevent="removeDragover">
                             <p v-for="chat in chats" :class="chat.who" >
                                 {{ chat.sender == usernameInput ? "" : chat.sender + ": " }}
                                 <span class="message markdown" :class="[chat.who, {pulse: chat.who == 'me' && chat.pending != 0}]" :data-timestamp=chat.timestamp v-if="chat.html !== undefined" v-html="chat.html"></span>
@@ -251,7 +251,7 @@
                         <div class="row">
                             <form v-on:submit="submitChat">
                                 <div class="input-field col s11">
-                                    <textarea id="chat_message" class="materialize-textarea" v-model="chatMessageInput" @keydown.enter.exact.prevent="submitChat" ></textarea>
+                                    <textarea id="chat_message" class="materialize-textarea" v-model="chatMessageInput" @keydown.enter.exact.prevent="submitChat" @paste="submitFile"></textarea>
                                     <label for="chat_message">Your message</label>
                                 </div>
                                 <button class="btn-floating btn-large waves-effect waves-light red" type="submit">
@@ -609,11 +609,14 @@
                     }
                 },
                 submitFile: function (event) {
-                    event.preventDefault(); // to prevent default behavior which is to POST to the same page
-
                     if(event instanceof DragEvent){
                         this.removeDragover(event);
                         var file_list = event.dataTransfer.files;
+                    }else if(event instanceof ClipboardEvent){
+                        var file_list = event.clipboardData.files;
+                        if(file_list.length > 0){
+                            event.preventDefault()
+                        }
                     }else{
                         var file_list = event.target.files;
                     }
@@ -633,7 +636,7 @@
                         });
                     });
 
-                    if(event.target) {event.target.value = null;}
+                    if(event.target && event.target.tagName == 'INPUT') {event.target.value = null;}
                 },
                 submitReceipt: function (chat) {
                     if(chat.who == 'me'){
