@@ -234,9 +234,9 @@
                         <div id="chatbox" @drop="submitFile" @dragover.prevent="addDragover" @dragleave.prevent="removeDragover">
                             <p v-for="chat in chats" :class="chat.who" >
                                 {{ chat.sender == usernameInput ? "" : chat.sender + ": " }}
-                                <span :class="'message ' + chat.who" :data-timestamp=chat.timestamp v-if="chat.html !== undefined" v-html="chat.html"></span>
-                                <span :class="'message ' + chat.who" :data-timestamp=chat.timestamp v-else-if="chat.type === 'text'">{{ chat.message }}</span>
-                                <span :class="'message ' + chat.who" :data-timestamp=chat.timestamp v-else-if="chat.type === 'file'" >
+                                <span :class="'message markdown ' + chat.who" :data-timestamp=chat.timestamp v-if="chat.html !== undefined" v-html="chat.html"></span>
+                                <span :class="'message text ' + chat.who" :data-timestamp=chat.timestamp v-else-if="chat.type === 'text'">{{ chat.message }}</span>
+                                <span :class="'message file ' + chat.who" :data-timestamp=chat.timestamp v-else-if="chat.type === 'file'" >
                                     <img :src="chat.href" :alt="chat.file.name" v-if="chat.file.type.startsWith('image/')"></img>
                                     <video class="responsive-video" controls v-else-if="chat.file.type.startsWith('video/')">
                                         <source :src="chat.href" :type="chat.file.type">
