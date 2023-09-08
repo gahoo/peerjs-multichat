@@ -646,7 +646,7 @@
                     var urls = [MARKDOWN_IMG, HTML_IMG].map(function (regex) {
                         const matches = [...chat.message.matchAll(regex)];
                         return(matches.map(x => x[1]))
-                    }).flat()
+                    }).flat().filter(x => x != '')
                     urls = [... new Set(urls)]
                     document.querySelector('#upload-btn').classList.add('pulse')
                     for (i in urls){
