@@ -60,6 +60,10 @@
                 text-align: right;
 	    }
 
+            a.download {
+                display: block;
+            }
+
             #chatbox {
                 height: 70vh;
                 text-align: left;
@@ -240,7 +244,7 @@
                                     <audio class="responsive-video" controls v-else-if="chat.file.type.startsWith('audio/')">
                                         <source :src="chat.href" :type="chat.file.type">
                                     </audio>
-                                    <i class='material-icons waves-effect'>download_for_offline</i><a :href="chat.href" :download="chat.file.name">{{ chat.file.name }}</a>
+                                    <a class="download" :href="chat.href" :download="chat.file.name"><i class='material-icons waves-effect'>download_for_offline</i>{{ chat.file.name }}</a>
                                 </span>
                             </p>
                         </div>
