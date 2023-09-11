@@ -34,6 +34,14 @@
                 margin: 0.18em;
             }
 
+            blockquote {
+                margin: 4px 0;
+                padding-left: 1rem;
+                border-left: 5px solid #bababab5;
+                background: #d3d3d3b5;
+                font-size: 0.5rem;
+            }
+
             span.message {
                 max-width: 90%;
                 border-radius: 5px;
@@ -62,6 +70,18 @@
 
             a.download {
                 display: block;
+            }
+
+            span.toolbox > a {
+                height: 24px;
+            }
+
+            span.toolbox {
+                display: none;
+            }
+
+            #chatbox > p:hover > span.toolbox {
+                display: inline-block;
             }
 
             #chatbox {
@@ -246,6 +266,9 @@
                                     </audio>
                                     <a class="download" :href="chat.href" :download="chat.file.name"><i class='material-icons waves-effect'>download_for_offline</i>{{ chat.file.name }}</a>
                                 </span>
+                                <span class="toolbox" v-if="chat.who == 'others'">
+                                    <a class="waves-effect waves-light white" ><i class="material-icons" v-on:click="quoteChat(chat)">format_quote</i></a>
+                                </span>
                             </p>
                         </div>
                         <div class="row">
@@ -336,7 +359,9 @@
                             // Scroll to bottom
                             chatbox.scrollTop = chatbox.scrollHeight;
                             // Play Audio
-                            message_audio.play();
+                            if(chats[(chats.length - 1)].who != 'me'){
+                                message_audio.play();
+                            }
                         }, 200)
                     } // to automatically scroll the chatbox to the most recent chat message
                 },
@@ -700,6 +725,20 @@
                     const blob = await response.blob();
                     const file = await this.readFile(blob, 'readAsDataURL')
                     return(file.content)
+                },
+                quoteChat: function(chat) {
+                    const MARKDOWN_IMG = /!\[.*?\]\((.*?)\)/mg;
+                    const HTML_IMG = /<img .*src=['"](.*?)['"].*>/mg;
+                    if(chat.type == 'file'){
+                        var quote = "<a class='download' href='" + chat.href + "' download='" + chat.file.name + "'><i class='material-icons waves-effect'>download_for_offline</i>" + chat.file.name + "</a>"
+                    }else{
+                        if(chat.message.search(MARKDOWN_IMG) != -1 || chat.message.search(HTML_IMG) != -1){
+                            var quote = chat.message;
+                        }else{
+                            var quote = chat.message.slice(0, 20) + '...';
+                        }
+                    }
+                    this.chatMessageInput = this.chatMessageInput + '\n\n > ' + chat.sender + ": " + quote;
                 },
                 send: function(data){
                     Object.values(this.connections).forEach(conn => {
