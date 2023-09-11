@@ -39,7 +39,7 @@
                 padding-left: 1rem;
                 border-left: 5px solid #bababab5;
                 background: #d3d3d3b5;
-                font-size: 0.5rem;
+                font-size: 0.8rem;
             }
 
             span.message {
@@ -254,6 +254,9 @@
                         <div id="chatbox" @drop.prevent="submitFile" @dragover.prevent="addDragover" @dragleave.prevent="removeDragover">
                             <p v-for="chat in chats" :class="chat.who" >
                                 {{ chat.sender == usernameInput ? "" : chat.sender + ": " }}
+                                <span class="toolbox" v-if="chat.who == 'me' && chat.pending != 0">
+                                    <a class="waves-effect waves-light red-text" ><i class="material-icons" v-on:click="resend(chat)">refresh</i></a>
+                                </span>
                                 <span class="message markdown" :class="[chat.who, {pulse: chat.who == 'me' && chat.pending != 0}]" :data-timestamp=chat.timestamp v-if="chat.html !== undefined" v-html="chat.html"></span>
                                 <span class="message text" :class="[chat.who, {pulse: chat.who == 'me' && chat.pending != 0}]" :data-timestamp=chat.timestamp v-else-if="chat.type === 'text'">{{ chat.message }}</span>
                                 <span class="message file" :class="[chat.who, {pulse: chat.who == 'me' && chat.pending != 0}]" :data-timestamp=chat.timestamp v-else-if="chat.type === 'file'" >
@@ -267,7 +270,7 @@
                                     <a class="download" :href="chat.href" :download="chat.file.name"><i class='material-icons waves-effect'>download_for_offline</i>{{ chat.file.name }}</a>
                                 </span>
                                 <span class="toolbox" v-if="chat.who == 'others'">
-                                    <a class="waves-effect waves-light white" ><i class="material-icons" v-on:click="quoteChat(chat)">format_quote</i></a>
+                                    <a class="waves-effect waves-light white grey-text" ><i class="material-icons" v-on:click="quoteChat(chat)">format_quote</i></a>
                                 </span>
                             </p>
                         </div>
@@ -402,9 +405,7 @@
                 },
                 cleanHistory: function () {
                     localStorage.setItem("chats", "");
-                    while(chatbox.firstChild) {
-                        chatbox.removeChild(chatbox.lastChild);
-                    }
+                    this.chats = [];
                 },
                 exportHistory: function () {
                     let export_link = document.createElement('a');
@@ -633,6 +634,34 @@
                         }
                     }
                 },
+                resend: function (old_chat) {
+                    if(old_chat.type == 'file'){
+                        if(!(old_chat.file.content instanceof ArrayBuffer)){
+                            M.toast({html: `File content broken, you have to upload ${old_chat.file.name} again manually.`, classes: "deep-orange rounded"});
+                            return
+                        }
+                        const file = {
+                            sender: this.usernameInput,
+                            file: old_chat.file,
+                            pending: this.peerIds.length,
+                            type: "file",
+                            timestamp: old_chat.timestamp
+                        };
+
+                        M.toast({html: `Resending ${old_chat.file.name}`, classes: "light-blue darken-4 rounded"});
+                        this.send({type: "file", file});
+                    }else{
+                        const chat = {
+                            sender: this.usernameInput,
+                            message: old_chat.message,
+                            pending: this.peerIds.length,
+                            type: "text",
+                            timestamp: old_chat.timestamp
+                        };
+
+                        this.send({type: "chat", chat});
+                    }
+                },
                 submitFile: function (event) {
                     if(event instanceof DragEvent){
                         this.removeDragover(event);
@@ -730,15 +759,15 @@
                     const MARKDOWN_IMG = /!\[.*?\]\((.*?)\)/mg;
                     const HTML_IMG = /<img .*src=['"](.*?)['"].*>/mg;
                     if(chat.type == 'file'){
-                        var quote = "<a class='download' href='" + chat.href + "' download='" + chat.file.name + "'><i class='material-icons waves-effect'>download_for_offline</i>" + chat.file.name + "</a>"
+                        var quote = `<a class="download" href="${chat.href}" download="${chat.file.name}"><i class="material-icons waves-effect">download_for_offline</i>${chat.file.name}</a>`
                     }else{
                         if(chat.message.search(MARKDOWN_IMG) != -1 || chat.message.search(HTML_IMG) != -1){
                             var quote = chat.message;
                         }else{
-                            var quote = chat.message.slice(0, 20) + '...';
+                            var quote = chat.message.slice(0, 40) + ' ...';
                         }
                     }
-                    this.chatMessageInput = this.chatMessageInput + '\n\n > ' + chat.sender + ": " + quote;
+                    this.chatMessageInput = this.chatMessageInput + `\n\n > ${chat.sender}: ${quote}`;
                 },
                 send: function(data){
                     Object.values(this.connections).forEach(conn => {
