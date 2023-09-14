@@ -309,7 +309,16 @@
         const chats = oldChats ? JSON.parse(oldChats) : []; // oldChats may be undefined, which throws error if passed into JSON.parse
         const oldPeerIds = localStorage.getItem("peerIds") ? localStorage.getItem("peerIds").split(',') : [];
         const message_audio = new Audio('/assets/bubble.wav');
-        const url_prams = Object.fromEntries(new URLSearchParams(window.location.search).entries())
+
+        function searchToObj(search) {
+          const obj = {};
+          for (const entry of search.entries()) {
+            obj[entry[0]] = entry[1];
+          }
+          return obj;
+        } 
+
+        const url_prams = searchToObj(new URLSearchParams(window.location.search))
         function configSaver(name, mutually_exclusive=null){
             return function() {
                 localStorage.setItem(name, this[name]);
