@@ -3,6 +3,8 @@
     <head>
         <title>Serverless, secure & persistent multichat</title>
         <meta name="apple-mobile-web-app-capable" content="yes"/>
+        <!--Let browser know website is optimized for mobile-->
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
 
         <!-- To efficiently implement sockets -->
@@ -98,6 +100,9 @@
                 background: #ebdcdca3;
                 border: 1px dashed;
             }
+            #users {
+                margin-top: 16px;
+            }
             .row {
                 width: 100%;
                 margin: 0;
@@ -105,6 +110,35 @@
             }
             .file-field .file-path-wrapper{
                 display: none;
+            }
+            .btn-flat {
+                padding: 0 0 0 8px;
+            }
+            audio.call {
+                width: 145px;
+                height: 1rem;
+                margin-top: 8px;
+            }
+            audio.call::-webkit-media-controls-timeline,
+            video.call::-webkit-media-controls-timeline,
+            /*audio::-webkit-media-controls-mute-button,
+            video::-webkit-media-controls-mute-button, */
+            audio::-webkit-media-controls-play-button,
+            video::-webkit-media-controls-play-button {
+                display: none;
+            }
+
+            audio::-webkit-media-controls-current-time-display{
+                margin: 0;
+            }
+
+            audio.call::-webkit-media-controls,
+            video.call::-webkit-media-controls {
+                align-items: baseline;
+            }
+            audio.call::-webkit-media-controls-panel,
+            video.call::-webkit-media-controls-panel {
+                background-color: #fff
             }
         </style>
     </head>
@@ -145,11 +179,6 @@
                 </div>
             </div>
             <div id="chat" v-if="screen === 'chat'">
-                <div class="container">
-                    <p>Crafted with &#10084; <em>by <a href="https://r.milon.pro" target="_blank" rel="noopener noreferrer">Rubilmax</a></em></p>
-                    <p>Your username: {{ usernameInput }}</p>
-                </div>
-
                 <div class="row">
                     <div id="users" class="col s12 m5">
                         <div class="row">
@@ -227,7 +256,7 @@
 
                             <div class="col s12">
                                 <h4>Connected users</h4>
-                                <p><i class="material-icons">portrait</i>{{ usernameInput }}</p>
+                                <p><i class="material-icons">account_box</i>{{ usernameInput }}</p>
                                 <p v-for="peerId in peerIds">
                                     <i class="material-icons">portrait</i>{{ getUsername(peerId) }}
                                 </p>
@@ -243,13 +272,13 @@
                             <button class="btn-floating waves-effect waves-light btn right" v-on:click="exportHistory">
                                 <i class="material-icons right">save</i>
                             </button>
-                            <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="cleanHistory" v-if="window.peerjs.util.supports.audioVideo">
+                            <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="cleanHistory" v-if="mediaSupports">
                                 <i class="material-icons">screen_share</i>
                             </button>
-                            <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="cleanHistory" v-if="window.peerjs.util.supports.audioVideo">
+                            <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="callPeers(video=true)" v-if="mediaSupports">
                                 <i class="material-icons">video_call</i>
                             </button>
-                            <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="cleanHistory" v-if="window.peerjs.util.supports.audioVideo">
+                            <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="callPeers()" v-if="mediaSupports">
                                 <i class="material-icons">call</i>
                             </button>
                             <div class = "file-field input-field">
@@ -280,18 +309,24 @@
                                     </audio>
                                     <a class="download" :href="chat.href" :download="chat.file.name"><i class='material-icons waves-effect'>download_for_offline</i>{{ chat.file.name }}</a>
                                 </span>
-                                <span class="toolbox" v-if="chat.who == 'others'">
+                                <span class="message call" :class="[chat.who, {pulse: chat.who == 'me' && chat.pending != 0}]" :data-timestamp=chat.timestamp v-else-if="chat.type === 'call'" >
+                                    <a class="btn-flat red-text text-darken-4" ><i class="material-icons" v-on:click="endCall(chat)">call_end</i></a>
+                                    <a class="btn-flat" :class="{'grey-text': !paused}" ><i class="material-icons" v-on:click="pauseStream(localStream)">phone_paused</i></a>
+                                    <audio class="call" :src-object.prop.camel="chat.src" controls autoplay>
+                                    </audio>
+                                </span>
+                                <span class="toolbox" v-if="chat.who == 'others' && chat.type != 'call'">
                                     <a class="waves-effect waves-light white grey-text" ><i class="material-icons" v-on:click="quoteChat(chat)">format_quote</i></a>
                                 </span>
                             </p>
                         </div>
                         <div class="row">
                             <form v-on:submit="submitChat">
-                                <div class="input-field col s11">
+                                <div class="input-field col s10">
                                     <textarea id="chat_message" class="materialize-textarea" v-model="chatMessageInput" @keydown.enter.exact.prevent="submitChat" @paste="submitFile"></textarea>
                                     <label for="chat_message">Your message</label>
                                 </div>
-                                <button class="btn-floating btn-large waves-effect waves-light red" type="submit">
+                                <button class="btn-floating waves-effect waves-light red" type="submit">
                                     <i class="material-icons">send</i>
                                 </button>
                             </form>
@@ -350,7 +385,13 @@
                 auto_login: localStorage.getItem("auto_login") === 'true' ? true : false,
                 reconnect_on_login: localStorage.getItem("reconnect_on_login") === 'true' ? true : false,
                 chats,
-                chatMessageInput: ""
+                chatMessageInput: "",
+                localStream: null,
+                remoteStream: {},
+                calls: {},
+                paused: false,
+                mediaSupports: window.peerjs.util.supports.audioVideo && navigator.mediaDevices !== undefined
+                
             },
             // in case you want to enable automatic login
             mounted: function () {
@@ -406,10 +447,10 @@
                     this.updatePeerIds();
 
                     console.log(`Connected to ${conn.peer}!`);
-                    M.toast({html: `Connected to ${conn.peer.replace(appPrefix, '')}...`, classes: "light-green darken-2 rounded"});
+                    M.toast({html: `Connected to ${app.getUsername(conn.peer)}...`, classes: "light-green darken-2 rounded"});
                 },
                 removeConnection: function (conn) {
-                    M.toast({html: 'Disconnected with ' + conn.peer.replace(appPrefix, ''), classes: "amber accent-4 rounded"});
+                    M.toast({html: `Disconnected with ${app.getUsername(conn.peer)}`, classes: "amber accent-4 rounded"});
                     delete this.connections[conn.peer];
                     this.updatePeerIds();
                 },
@@ -436,7 +477,7 @@
                 },
                 connectPeers: function(peerIds){
                     peerIds.forEach(peerId => {
-                        this.targetIdInput = peerId.replace(appPrefix, '');
+                        this.targetIdInput = this.getUsername(peerId);
                         this.initiateConnection(peerId);
                     });
                 },
@@ -575,6 +616,31 @@
                             });
                         }
                     });
+
+                    this.peer.on('call', function(call) {
+                        app.call = call;
+                        const msg = `${app.getUsername(call.peer)} is calling` +
+                                    `<button class="btn-flat btn-xs light-green-text text-accent-4" onclick="app.answerCall();M.Toast.getInstance(this.parentElement).dismiss()"><i class="material-icons">call</i></button>` +
+                                    `<button class="btn-flat btn-xs red-text text-darken-4" onclick="app.rejectCall();M.Toast.getInstance(this.parentElement).dismiss()"><i class="material-icons">call_end</i></button>`
+                        M.toast({html: msg, classes: "light-green darken-2 rounded", displayLength: 300000})
+                    });
+                },
+                answerCall: function(){
+                    // Answer the call, providing our mediaStream
+                    navigator.mediaDevices.getUserMedia(this.call.metadata.constraints).then((stream) => {
+                        this.localStream = stream;
+               	        this.call.answer(stream);
+                        this.call.on("stream", remoteStream => app.receiveCall(remoteStream, this.call.peer));
+                        this.call.on("close", function(){
+                            app.localStream.getTracks().forEach(track => track.stop());
+                            this.ended = true;
+                            M.toast({html: `Call with ${app.getUsername(this.peer)} ended.`, classes: "light-blue darken-4 rounded"})
+                        });
+                        this.call.on("error", function(err){M.toast({html: err, classes: "deep-orange rounded"})});
+                    });
+                },
+                endCall: function(){
+                    this.call.close();
                 },
 
                 submitLogin: function (event) {
@@ -585,9 +651,9 @@
                         this.peerError = ""; // reset error status
 
                         localStorage.setItem("username", this.usernameInput); // set username cookie to instanciate it at the next session
-                        localStorage.setItem("signal_server", this.signal_server); // set signal server cookie to instanciate it at the next session
-                        localStorage.setItem("stun_server", this.stun_server); // set stun server cookie to instanciate it at the next session
-                        localStorage.setItem("turn_server", this.turn_server); // set turn server cookie to instanciate it at the next session
+                        localStorage.setItem("signal_server", this.signal_server?this.signal_server:''); // set signal server cookie to instanciate it at the next session
+                        localStorage.setItem("stun_server", this.stun_server?this.stun_server:''); // set stun server cookie to instanciate it at the next session
+                        localStorage.setItem("turn_server", this.turn_server?this.turn_server:''); // set turn server cookie to instanciate it at the next session
 
                         this.createPeer();
                     }
@@ -792,6 +858,40 @@
                 send: function(data){
                     Object.values(this.connections).forEach(conn => {
                         conn.send(data);
+                    });
+                },
+                receiveCall: function(remoteStream, peerId){
+                    this.remoteStream[peerId] = remoteStream;
+                    const sender = this.getUsername(peerId);
+                    const chat = {
+                        sender: sender,
+                        who: sender != this.usernameInput?"others":"me",
+                        pending: 0,
+                        src: remoteStream,
+                        type: "call",
+                        timestamp: new Date().getTime()
+                    }
+                    this.chats.push(chat);
+                },
+                callPeers: function(video=false, audio=true){
+                    const constraints = {video: video, audio: audio}
+                    navigator.mediaDevices.getUserMedia(constraints).then((stream) =>{
+                        this.localStream = stream;
+                        this.peerIds.forEach(peerId => {
+                            this.call = this.peer.call(peerId, stream, {metadata: {constraints: constraints}})
+                            M.toast({html: `Calling with ${app.getUsername(peerId)} ...`, classes: "light-green darken-2 rounded call-" + peerId, displayLength: 30000})
+                            this.call.on("stream", remoteStream => {
+                                app.receiveCall(remoteStream, peerId)
+                                const toast = document.querySelector(".call-" + peerId);
+                                M.Toast.getInstance(toast).dismiss()
+                            });
+                        });
+                    });
+                },
+                pauseStream: function(stream){
+                    stream.getTracks().forEach(track => {
+                        track.enabled = !track.enabled;
+                        this.paused = !track.enabled;
                     });
                 },
                 addDragover: function(event){
