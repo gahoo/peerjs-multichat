@@ -67,10 +67,10 @@
                 background-color: white;
             }
 
-	    p.me {
+            p.me {
                 width: 100% !important;
                 text-align: right;
-	    }
+            }
 
             a.download {
                 display: block;
@@ -102,6 +102,15 @@
             }
             #users {
                 margin-top: 16px;
+            }
+            .hidden {
+                display: none;
+            }
+            .switches {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: center;
             }
             .row {
                 width: 100%;
@@ -180,7 +189,7 @@
             </div>
             <div id="chat" v-if="screen === 'chat'">
                 <div class="row">
-                    <div id="users" class="col s12 m5">
+                    <div id="users" class="col s12" :class="showSettings?'m5':'hidden'">
                         <div class="row">
                             <!-- We don't show connection form if the client is disconnected -->
                             <div v-if="!peer.disconnected">
@@ -212,23 +221,29 @@
                                 <em>You can still talk to connected users, but won't be able to reach or be reached by any new user!</em>
                             </div>
 
-                            <div class="col s12">
+                            <div class="col s12 switches">
                                 <div class="switch">
                                   <label>
                                       Markdown
                                       <input type="checkbox" v-model="markdown">
                                       <span class="lever"></span>
                                   </label>
+                                </div>
+                                <div class="switch">
                                   <label>
                                       Sanitize
                                       <input type="checkbox" v-model="sanitize">
                                       <span class="lever"></span>
                                   </label>
+                                </div>
+                                <div class="switch">
                                   <label>
                                       Base64
                                       <input type="checkbox" v-model="convert_base64">
                                       <span class="lever"></span>
                                   </label>
+                                </div>
+                                <div class="switch">
                                   <label>
                                       History
                                       <input type="checkbox" v-model="save_history">
@@ -241,11 +256,15 @@
                                       <input type="checkbox" v-model="receive_file">
                                       <span class="lever"></span>
                                   </label>
+                                </div>
+                                <div class="switch">
                                   <label>
                                       Auto Login
                                       <input type="checkbox" v-model="auto_login">
                                       <span class="lever"></span>
                                   </label>
+                                </div>
+                                <div class="switch">
                                   <label>
                                       Reconnect on Login
                                       <input type="checkbox" v-model="reconnect_on_login">
@@ -264,25 +283,28 @@
                         </div>
                     </div>
 
-                    <div class="col s12 m7">
+                    <div class="col s12" :class="showSettings?'m7':''">
                         <div class="control-buttons">
-                            <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="cleanHistory">
+                            <button class="btn-floating waves-effect waves-light right" v-on:click="cleanHistory">
                                 <i class="material-icons">delete-sweep</i>
                             </button>
                             <button class="btn-floating waves-effect waves-light btn right" v-on:click="exportHistory">
                                 <i class="material-icons right">save</i>
                             </button>
-                            <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="cleanHistory" v-if="mediaSupports">
+                            <button class="btn-floating waves-effect waves-light right" v-on:click="cleanHistory" v-if="mediaSupports">
                                 <i class="material-icons">screen_share</i>
                             </button>
-                            <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="callPeers(video=true)" v-if="mediaSupports">
+                            <button class="btn-floating waves-effect waves-light right" v-on:click="callPeers(video=true)" v-if="mediaSupports">
                                 <i class="material-icons">video_call</i>
                             </button>
-                            <button class="btn-floating btn-xs waves-effect waves-light right" v-on:click="callPeers()" v-if="mediaSupports">
+                            <button class="btn-floating waves-effect waves-light right" v-on:click="callPeers()" v-if="mediaSupports">
                                 <i class="material-icons">call</i>
                             </button>
+                            <button class="btn-floating waves-effect waves-light grey left" v-on:click="toggleSettingPanel()">
+                                <i class="material-icons">settings</i>
+                            </button>
                             <div class = "file-field input-field">
-                                <div id="upload-btn" class = "btn-floating btn-xs waves-effect waves-light blue left">
+                                <div id="upload-btn" class = "btn-floating waves-effect waves-light blue left">
                                     <input type="file" multiple v-on:change="submitFile">
                                     <i class="material-icons">upload</i>
                                 </div>
@@ -384,6 +406,7 @@
                 save_history: localStorage.getItem("save_history") === 'false' ? false : true,
                 receive_file: localStorage.getItem("receive_file") === 'false' ? false : true,
                 auto_login: localStorage.getItem("auto_login") === 'true' ? true : false,
+                showSettings: localStorage.getItem("show_settings") === 'false' ? false : true,
                 reconnect_on_login: localStorage.getItem("reconnect_on_login") === 'true' ? true : false,
                 chats,
                 chatMessageInput: "",
@@ -624,8 +647,8 @@
                     this.peer.on('call', function(call) {
                         app.call = call;
                         const msg = `${app.getUsername(call.peer)} is calling` +
-                                    `<button class="btn-flat btn-xs light-green-text text-accent-4" onclick="app.answerCall();M.Toast.getInstance(this.parentElement).dismiss()"><i class="material-icons">call</i></button>` +
-                                    `<button class="btn-flat btn-xs red-text text-darken-4" onclick="app.endCall();M.Toast.getInstance(this.parentElement).dismiss()"><i class="material-icons">call_end</i></button>`
+                                    `<button class="btn-flat light-green-text text-accent-4" onclick="app.answerCall();M.Toast.getInstance(this.parentElement).dismiss()"><i class="material-icons">call</i></button>` +
+                                    `<button class="btn-flat red-text text-darken-4" onclick="app.endCall();M.Toast.getInstance(this.parentElement).dismiss()"><i class="material-icons">call_end</i></button>`
                         M.toast({html: msg, classes: "light-green darken-2 rounded", displayLength: 300000})
                     });
                 },
@@ -918,6 +941,10 @@
                 },
                 removeDragover: function(event){
                     event.target.classList.remove('dragover');
+                },
+                toggleSettingPanel: function(){
+                    this.showSettings = !this.showSettings;
+                    localStorage.setItem('show_settings', this.showSettings);
                 }
             }
         });
