@@ -311,9 +311,10 @@
                                 </span>
                                 <span class="message call" :class="[chat.who, {pulse: chat.who == 'me' && chat.pending != 0}]" :data-timestamp=chat.timestamp v-else-if="chat.type === 'call'" >
                                     <a class="btn-flat red-text text-darken-4" ><i class="material-icons" v-on:click="endCall(chat)">call_end</i></a>
-                                    <a class="btn-flat" :class="{'grey-text': !paused}" ><i class="material-icons" v-on:click="pauseStream(localStream)">phone_paused</i></a>
-                                    <audio class="call" :src-object.prop.camel="chat.src" controls autoplay>
-                                    </audio>
+                                    <a class="btn-flat" :class="{'grey-text': paused}" ><i class="material-icons" v-on:click="pauseStream(localStream)">mic</i></a>
+                                    <video class="call" :src-object.prop.camel="chat.src" autoplay v-if="chat.video"></video>
+                                    <audio class="call" :src-object.prop.camel="chat.src" controls autoplay v-else></audio>
+                                    
                                 </span>
                                 <span class="toolbox" v-if="chat.who == 'others' && chat.type != 'call'">
                                     <a class="waves-effect waves-light white grey-text" ><i class="material-icons" v-on:click="quoteChat(chat)">format_quote</i></a>
@@ -414,12 +415,15 @@
                     if (chatbox) {
                         window.setTimeout(function(){
                             // Format Images
-                            const new_imgs = chatbox.lastChild.querySelectorAll('img');
-                            new_imgs.forEach(x => {
-                                x.classList.add('materialboxed')
-                                x.classList.add('responsive-img')
-                            });
-                            M.Materialbox.init(new_imgs);
+                            if(chatbox.lastChild !== null){
+                                const new_imgs = chatbox.lastChild.querySelectorAll('img');
+                                new_imgs.forEach(x => {
+                                    x.classList.add('materialboxed')
+                                    x.classList.add('responsive-img')
+                                });
+                                M.Materialbox.init(new_imgs);
+                            }
+                            
                             // Scroll to bottom
                             chatbox.scrollTop = chatbox.scrollHeight;
                             // Play Audio
@@ -621,7 +625,7 @@
                         app.call = call;
                         const msg = `${app.getUsername(call.peer)} is calling` +
                                     `<button class="btn-flat btn-xs light-green-text text-accent-4" onclick="app.answerCall();M.Toast.getInstance(this.parentElement).dismiss()"><i class="material-icons">call</i></button>` +
-                                    `<button class="btn-flat btn-xs red-text text-darken-4" onclick="app.rejectCall();M.Toast.getInstance(this.parentElement).dismiss()"><i class="material-icons">call_end</i></button>`
+                                    `<button class="btn-flat btn-xs red-text text-darken-4" onclick="app.endCall();M.Toast.getInstance(this.parentElement).dismiss()"><i class="material-icons">call_end</i></button>`
                         M.toast({html: msg, classes: "light-green darken-2 rounded", displayLength: 300000})
                     });
                 },
@@ -630,17 +634,30 @@
                     navigator.mediaDevices.getUserMedia(this.call.metadata.constraints).then((stream) => {
                         this.localStream = stream;
                	        this.call.answer(stream);
-                        this.call.on("stream", remoteStream => app.receiveCall(remoteStream, this.call.peer));
-                        this.call.on("close", function(){
-                            app.localStream.getTracks().forEach(track => track.stop());
-                            this.ended = true;
-                            M.toast({html: `Call with ${app.getUsername(this.peer)} ended.`, classes: "light-blue darken-4 rounded"})
-                        });
-                        this.call.on("error", function(err){M.toast({html: err, classes: "deep-orange rounded"})});
+                        this.configCall(this.call);
                     });
                 },
                 endCall: function(){
                     this.call.close();
+                },
+                configCall: function(call){
+                    call.on("stream", remoteStream => {
+                        this.receiveCall(remoteStream, call.peer, call.metadata.constraints.video);
+                        if(call.metadata.constraints.video){
+                            this.receiveCall(this.localStream, this.getPeerId(this.usernameInput), call.metadata.constraints.video);
+                        }
+                        const toast = document.querySelector(".call-" + call.peer);
+                        if(toast){
+                            M.Toast.getInstance(toast).dismiss();
+                        }
+                    });;
+                    call.on("close", () => {
+                        delete this.remoteStream[call.peer];
+                        delete this.remoteStream[this.getPeerId(this.usernameInput)];
+                        this.localStream.getTracks().forEach(track => track.stop());
+                        M.toast({html: `Call with ${this.getUsername(call.peer)} ended.`, classes: "light-blue darken-4 rounded"})
+                    });
+                    call.on("error", function(err){M.toast({html: err, classes: "deep-orange rounded"})});
                 },
 
                 submitLogin: function (event) {
@@ -860,15 +877,21 @@
                         conn.send(data);
                     });
                 },
-                receiveCall: function(remoteStream, peerId){
-                    this.remoteStream[peerId] = remoteStream;
+                receiveCall: function(remoteStream, peerId, video){
                     const sender = this.getUsername(peerId);
+                    if(peerId in this.remoteStream){
+                        return;
+                    }else{
+                        this.remoteStream[peerId] = remoteStream;
+                    }
+
                     const chat = {
                         sender: sender,
                         who: sender != this.usernameInput?"others":"me",
                         pending: 0,
                         src: remoteStream,
                         type: "call",
+                        video: video,
                         timestamp: new Date().getTime()
                     }
                     this.chats.push(chat);
@@ -880,11 +903,7 @@
                         this.peerIds.forEach(peerId => {
                             this.call = this.peer.call(peerId, stream, {metadata: {constraints: constraints}})
                             M.toast({html: `Calling with ${app.getUsername(peerId)} ...`, classes: "light-green darken-2 rounded call-" + peerId, displayLength: 30000})
-                            this.call.on("stream", remoteStream => {
-                                app.receiveCall(remoteStream, peerId)
-                                const toast = document.querySelector(".call-" + peerId);
-                                M.Toast.getInstance(toast).dismiss()
-                            });
+                            this.configCall(this.call);
                         });
                     });
                 },
