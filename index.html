@@ -334,7 +334,7 @@
                                 <span class="message call" :class="[chat.who, {pulse: chat.who == 'me' && chat.pending != 0}]" :data-timestamp=chat.timestamp v-else-if="chat.type === 'call'" >
                                     <a class="btn-flat red-text text-darken-4" ><i class="material-icons" v-on:click="endCall(chat)">call_end</i></a>
                                     <a class="btn-flat" :class="{'grey-text': paused}" ><i class="material-icons" v-on:click="pauseStream(localStream)">mic</i></a>
-                                    <video class="call" :src-object.prop.camel="chat.src" autoplay v-if="chat.video"></video>
+                                    <video class="call responsive-video" :src-object.prop.camel="chat.src" autoplay v-if="chat.video"></video>
                                     <audio class="call" :src-object.prop.camel="chat.src" controls autoplay v-else></audio>
                                     
                                 </span>
@@ -423,7 +423,7 @@
                     if (['usernameInput', 'signal_server', 'stun_server', 'turn_server'].indexOf(key) >= 0){
                         this[key] = url_prams[key];
                     }
-                    if (['auto_login', 'reconnect_on_login'].indexOf(key) >= 0){
+                    if (['auto_login', 'reconnect_on_login', 'showSettings'].indexOf(key) >= 0){
                         this[key] = url_prams[key] === 'true' ? true : false;
                     }
                 }
@@ -617,13 +617,12 @@
                     // error listener
                     this.peer.on("error", error => {
                         if (error.type === "peer-unavailable") { // if connection with new peer can't be established
-                            this.loading = false;
                             this.peerError = `${this.targetIdInput} is unreachable!`; // custom error message
                             this.targetIdInput = "";
                         } else if (error.type === "unavailable-id") { // if requested id (thus username) is already taken
-                            this.loading = false;
                             this.peerError = `${this.usernameInput} is already taken!`; // custom error message
                         } else this.peerError = error; // default error message
+                        this.loading = false;
                         M.toast({html: this.peerError, classes: "deep-orange rounded"});
                     });
 
