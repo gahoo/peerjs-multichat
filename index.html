@@ -89,7 +89,7 @@
             }
 
             #chatbox {
-                height: 70vh;
+                height: 75vh;
                 text-align: left;
                 width: 95%;
                 margin: 0 auto;
@@ -291,7 +291,7 @@
                             <button class="btn-floating waves-effect waves-light btn right" v-on:click="exportHistory">
                                 <i class="material-icons right">save</i>
                             </button>
-                            <button class="btn-floating waves-effect waves-light right" v-on:click="cleanHistory" v-if="mediaSupports">
+                            <button class="btn-floating waves-effect waves-light right" v-on:click="callPeers(video=true, audio=true, share_screen=true)" v-if="mediaSupports">
                                 <i class="material-icons">screen_share</i>
                             </button>
                             <button class="btn-floating waves-effect waves-light right" v-on:click="callPeers(video=true)" v-if="mediaSupports">
@@ -333,8 +333,9 @@
                                 </span>
                                 <span class="message call" :class="[chat.who, {pulse: chat.who == 'me' && chat.pending != 0}]" :data-timestamp=chat.timestamp v-else-if="chat.type === 'call'" >
                                     <a class="btn-flat red-text text-darken-4" ><i class="material-icons" v-on:click="endCall(chat)">call_end</i></a>
-                                    <a class="btn-flat" :class="{'grey-text': paused}" ><i class="material-icons" v-on:click="pauseStream(localStream)">mic</i></a>
-                                    <video class="call responsive-video" :src-object.prop.camel="chat.src" autoplay v-if="chat.video"></video>
+                                    <a class="btn-flat" :class="{'grey-text': paused}" ><i class="material-icons" v-on:click="pauseStream(localStream)" v-if="chat.who == 'me'">phone_paused</i></a>
+                                    <a class="btn-flat" :class="{'grey-text': paused}" ><i class="material-icons" v-if="chat.video && navigator.userAgent.indexOf('Firefox') == -1" v-on:click="togglePictureInPicture">picture_in_picture</i></a>
+                                    <video class="call responsive-video" :src-object.prop.camel="chat.src" controls autoplay v-if="chat.video"></video>
                                     <audio class="call" :src-object.prop.camel="chat.src" controls autoplay v-else></audio>
                                     
                                 </span>
@@ -343,7 +344,7 @@
                                 </span>
                             </p>
                         </div>
-                        <div class="row">
+                        <div>
                             <form v-on:submit="submitChat">
                                 <div class="input-field col s10">
                                     <textarea id="chat_message" class="materialize-textarea" v-model="chatMessageInput" @keydown.enter.exact.prevent="submitChat" @paste="submitFile"></textarea>
@@ -652,11 +653,11 @@
                     });
                 },
                 answerCall: function(){
-                    // Answer the call, providing our mediaStream
+                    // Answer the call, providing our mediaStream                  
                     navigator.mediaDevices.getUserMedia(this.call.metadata.constraints).then((stream) => {
                         this.localStream = stream;
-               	        this.call.answer(stream);
                         this.configCall(this.call);
+                        this.call.answer(stream);
                     });
                 },
                 endCall: function(){
@@ -918,15 +919,18 @@
                     }
                     this.chats.push(chat);
                 },
-                callPeers: function(video=false, audio=true){
+                callPeers: function(video=false, audio=true, share_screen=false){
                     const constraints = {video: video, audio: audio}
-                    navigator.mediaDevices.getUserMedia(constraints).then((stream) =>{
+                    const func = share_screen?'getDisplayMedia':'getUserMedia'
+                    navigator.mediaDevices[func](constraints).then((stream) =>{
                         this.localStream = stream;
                         this.peerIds.forEach(peerId => {
-                            this.call = this.peer.call(peerId, stream, {metadata: {constraints: constraints}})
+                            this.call = this.peer.call(peerId, stream, {metadata: {constraints: constraints, func: func}})
                             M.toast({html: `Calling with ${app.getUsername(peerId)} ...`, classes: "light-green darken-2 rounded call-" + peerId, displayLength: 30000})
                             this.configCall(this.call);
                         });
+                    }).catch(function(err){
+                        M.toast({html: err, classes: "deep-orange rounded"});
                     });
                 },
                 pauseStream: function(stream){
@@ -944,6 +948,18 @@
                 toggleSettingPanel: function(){
                     this.showSettings = !this.showSettings;
                     localStorage.setItem('show_settings', this.showSettings);
+                },
+                togglePictureInPicture: function(event){
+                    const video = event.target.parentElement.nextElementSibling;
+                    video.requestPictureInPicture();
+                    if (document.pictureInPictureElement) {
+                        document.exitPictureInPicture();
+                    } else {
+                        if (document.pictureInPictureEnabled) {
+                            const video = event.target.parentElement.nextElementSibling;
+                            video.requestPictureInPicture();
+                        }
+                    }
                 }
             }
         });
