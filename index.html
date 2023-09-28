@@ -89,7 +89,7 @@
             }
 
             #chatbox {
-                height: 75vh;
+                height: 72vh;
                 text-align: left;
                 width: 95%;
                 margin: 0 auto;
@@ -275,8 +275,16 @@
 
                             <div class="col s12">
                                 <h4>Connected users</h4>
-                                <p><i class="material-icons">account_box</i>{{ usernameInput }}</p>
+                                <p>
+                                    <a class="teal-text waves-effect waves-light" v-on:click="shareLink">
+                                        <i class="material-icons">share</i>
+                                    </a>
+                                    <i class="material-icons">account_box</i>{{ usernameInput }}
+                                </p>
                                 <p v-for="peerId in peerIds">
+                                    <a class="waves-effect waves-light red-text text-darken-4" v-on:click="closePeerConnection(peerId)">
+                                        <i class="material-icons">remove_circle</i>
+                                    </a>
                                     <i class="material-icons">portrait</i>{{ getUsername(peerId) }}
                                 </p>
                             </div>
@@ -291,7 +299,7 @@
                             <button class="btn-floating waves-effect waves-light btn right" v-on:click="exportHistory">
                                 <i class="material-icons right">save</i>
                             </button>
-                            <button class="btn-floating waves-effect waves-light right" v-on:click="callPeers(video=true, audio=true, share_screen=true)" v-if="mediaSupports">
+                            <button class="btn-floating waves-effect waves-light right hide-on-small-only" v-on:click="callPeers(video=true, audio=true, share_screen=true)" v-if="mediaSupports">
                                 <i class="material-icons">screen_share</i>
                             </button>
                             <button class="btn-floating waves-effect waves-light right" v-on:click="callPeers(video=true)" v-if="mediaSupports">
@@ -334,7 +342,6 @@
                                 <span class="message call" :class="[chat.who, {pulse: chat.who == 'me' && chat.pending != 0}]" :data-timestamp=chat.timestamp v-else-if="chat.type === 'call'" >
                                     <a class="btn-flat red-text text-darken-4" ><i class="material-icons" v-on:click="endCall(chat)">call_end</i></a>
                                     <a class="btn-flat" :class="{'grey-text': paused}" ><i class="material-icons" v-on:click="pauseStream(localStream)" v-if="chat.who == 'me'">phone_paused</i></a>
-                                    <a class="btn-flat" :class="{'grey-text': paused}" ><i class="material-icons" v-if="chat.video && navigator.userAgent.indexOf('Firefox') == -1" v-on:click="togglePictureInPicture">picture_in_picture</i></a>
                                     <video class="call responsive-video" :src-object.prop.camel="chat.src" controls autoplay v-if="chat.video"></video>
                                     <audio class="call" :src-object.prop.camel="chat.src" controls autoplay v-else></audio>
                                     
@@ -482,6 +489,16 @@
                     delete this.connections[conn.peer];
                     this.updatePeerIds();
                 },
+                closePeerConnection: function(peerId){
+                    if(peerId in this.connections){
+                        const kick = {
+                            peerId: this.getPeerId(this.usernameInput),
+                            timestamp: chat.timestamp
+                        };
+                        this.connections[peerId].send({type: "kick", kick})
+                        this.removeConnection(this.connections[peerId]);
+                    }
+                },
                 updatePeerIds: function () {
                     this.peerIds = Object.keys(this.connections);
                     localStorage.setItem('peerIds', this.peerIds)
@@ -535,6 +552,8 @@
                             this.receiveFile(data.file);
                         } else if (data.type === "receipt") {
                             this.receiveReceipt(data.receipt.timestamp);
+                        } else if (data.type === "kick") {
+                            this.closePeerConnection(data.kick.peerId);
                         }
                         // please note here that if data.type is undefined, this endpoint won't do anything!
                     });
@@ -949,17 +968,13 @@
                     this.showSettings = !this.showSettings;
                     localStorage.setItem('show_settings', this.showSettings);
                 },
-                togglePictureInPicture: function(event){
-                    const video = event.target.parentElement.nextElementSibling;
-                    video.requestPictureInPicture();
-                    if (document.pictureInPictureElement) {
-                        document.exitPictureInPicture();
-                    } else {
-                        if (document.pictureInPictureEnabled) {
-                            const video = event.target.parentElement.nextElementSibling;
-                            video.requestPictureInPicture();
-                        }
-                    }
+                shareLink: function(){
+                    const params = `${this.signal_server?'&signal_server='+this.signal_server:''}` +
+                                   `${this.stun_server?'&stun_server='+this.stun_server:''}` +
+                                   `${this.turn_server?'&turn_server='+this.stun_server:''}`
+                    const link = `${window.location.href}?talkto=${this.usernameInput}${params}`;
+                    navigator.clipboard.writeText(link)
+                    M.toast({html: `Link copied.`, classes: "light-blue darken-4 rounded"})
                 }
             }
         });
