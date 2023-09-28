@@ -1,0 +1,22 @@
+{
+	"name":"peerChat",
+	"short_name":"peerChat",
+	"start_url":"index.html",
+	"display":"standalone",
+	"background_color":"#ecf0f1",
+	"theme_color":"white",
+	"scope": ".",
+	"description":"Serverless, secure & persistent multichat",
+	"icons":[
+		{
+		"src":"assets/icon/android-chrome-192x192.png",					
+		"sizes":"192x192",
+		"type":"image/png"
+		},
+		{
+		"src":"assets/icon/android-chrome-512x512.png",
+		"sizes":"512x512",
+		"type":"image/png"
+		}
+	]
+}
