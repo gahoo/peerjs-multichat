@@ -8,10 +8,8 @@
 
 
         <!-- To efficiently implement sockets -->
-	<!--<script src="https://unpkg.com/peerjs@1.3.2/dist/peerjs.min.js"></script>-->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
         <!-- To easily manage dynamic rendering -->
-	<!--<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>-->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.7.14/vue.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/7.0.5/marked.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js"></script>
@@ -341,7 +339,7 @@
                                 </span>
                                 <span class="message call" :class="[chat.who, {pulse: chat.who == 'me' && chat.pending != 0}]" :data-timestamp=chat.timestamp v-else-if="chat.type === 'call'" >
                                     <a class="btn-flat red-text text-darken-4" ><i class="material-icons" v-on:click="endCall(chat)">call_end</i></a>
-                                    <a class="btn-flat" :class="{'grey-text': paused}" ><i class="material-icons" v-on:click="pauseStream(localStream)" v-if="chat.who == 'me'">phone_paused</i></a>
+                                    <a class="btn-flat" :class="{'grey-text': paused}" ><i class="material-icons" v-on:click="pauseStream(localStream)" v-if="chat.who == 'me' || chat.video == false">phone_paused</i></a>
                                     <video class="call responsive-video" :src-object.prop.camel="chat.src" controls autoplay v-if="chat.video"></video>
                                     <audio class="call" :src-object.prop.camel="chat.src" controls autoplay v-else></audio>
                                     
@@ -375,6 +373,10 @@
         const chats = oldChats ? JSON.parse(oldChats) : []; // oldChats may be undefined, which throws error if passed into JSON.parse
         const oldPeerIds = localStorage.getItem("peerIds") ? localStorage.getItem("peerIds").split(',') : [];
         const message_audio = new Audio('/assets/bubble.wav');
+        const ringtone_audio = new Audio('/assets/ringtone.mp3');
+        ringtone_audio.loop = true;
+        const online_audio = new Audio('/assets/enter.mp3');
+        const offline_audio = new Audio('/assets/leave.mp3');
 
         function searchToObj(search) {
           const obj = {};
@@ -464,6 +466,11 @@
                         }, 200)
                     } // to automatically scroll the chatbox to the most recent chat message
                 },
+                peerError: function () {
+                    if(this.peerError != ""){
+                        M.toast({html: this.peerError, classes: "deep-orange rounded"});
+                    }
+                },
                 markdown: configSaver('markdown'),
                 sanitize: configSaver('sanitize', 'convert_base64'),
                 convert_base64: configSaver('convert_base64', 'sanitize'),
@@ -482,9 +489,11 @@
                     this.updatePeerIds();
 
                     console.log(`Connected to ${conn.peer}!`);
+                    online_audio.play();
                     M.toast({html: `Connected to ${app.getUsername(conn.peer)}...`, classes: "light-green darken-2 rounded"});
                 },
                 removeConnection: function (conn) {
+                    offline_audio.play();
                     M.toast({html: `Disconnected with ${app.getUsername(conn.peer)}`, classes: "amber accent-4 rounded"});
                     delete this.connections[conn.peer];
                     this.updatePeerIds();
@@ -637,13 +646,12 @@
                     // error listener
                     this.peer.on("error", error => {
                         if (error.type === "peer-unavailable") { // if connection with new peer can't be established
-                            this.peerError = `${this.targetIdInput} is unreachable!`; // custom error message
+                            this.peerError = `${this.getUsername(error.message.replace('Could not connect to peer ',''))} is unreachable!`; // custom error message
                             this.targetIdInput = "";
                         } else if (error.type === "unavailable-id") { // if requested id (thus username) is already taken
                             this.peerError = `${this.usernameInput} is already taken!`; // custom error message
                         } else this.peerError = error; // default error message
                         this.loading = false;
-                        M.toast({html: this.peerError, classes: "deep-orange rounded"});
                     });
 
                     // when peer receives a connection
@@ -664,11 +672,16 @@
                     });
 
                     this.peer.on('call', function(call) {
+                        ringtone_audio.play();
                         app.call = call;
                         const msg = `${app.getUsername(call.peer)} is calling` +
                                     `<button class="btn-flat light-green-text text-accent-4" onclick="app.answerCall();M.Toast.getInstance(this.parentElement).dismiss()"><i class="material-icons">call</i></button>` +
                                     `<button class="btn-flat red-text text-darken-4" onclick="app.endCall();M.Toast.getInstance(this.parentElement).dismiss()"><i class="material-icons">call_end</i></button>`
-                        M.toast({html: msg, classes: "light-green darken-2 rounded", displayLength: 300000})
+                        M.toast({html: msg, classes: "light-green darken-2 rounded", displayLength: 300000,
+                            completeCallback: function(){
+                                ringtone_audio.pause();
+                            }
+                        })
                     });
                 },
                 answerCall: function(){
@@ -969,10 +982,11 @@
                     localStorage.setItem('show_settings', this.showSettings);
                 },
                 shareLink: function(){
-                    const params = `${this.signal_server?'&signal_server='+this.signal_server:''}` +
+                    const params = `${this.targetIdInput?'&usernameInput='+this.targetIdInput+'&auto_login=true':''}` +
+                                   `${this.signal_server?'&signal_server='+this.signal_server:''}` +
                                    `${this.stun_server?'&stun_server='+this.stun_server:''}` +
                                    `${this.turn_server?'&turn_server='+this.stun_server:''}`
-                    const link = `${window.location.href}?talkto=${this.usernameInput}${params}`;
+                    const link = `${window.location.origin}?talkto=${this.usernameInput}${params}`;
                     navigator.clipboard.writeText(link)
                     M.toast({html: `Link copied.`, classes: "light-blue darken-4 rounded"})
                 }
