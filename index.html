@@ -8,19 +8,19 @@
 
 
         <!-- To efficiently implement sockets -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.4.7/peerjs.min.js"></script>
+        <script src="/assets/peerjs/1.4.7/peerjs.min.js"></script>
         <!-- To easily manage dynamic rendering -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.7.14/vue.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/7.0.5/marked.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.5/purify.min.js"></script>
+        <script src="/assets/vue/2.7.14/vue.min.js"></script>
+        <script src="/assets/marked/7.0.5/marked.min.js"></script>
+        <script src="/assets/dompurify/3.0.5/purify.min.js"></script>
 
         <!-- Integrate font styles -->
-        <link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display&display=swap" rel="stylesheet">
+        <link href="/assets/font/redhat.css" rel="stylesheet">
 
         <!-- Material Design stylesheets -->
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
-        <script async src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+        <link href="/assets/font/material-icons.css" rel="stylesheet">
+        <link rel="stylesheet" href="/assets/materialize/1.0.0/css/materialize.min.css">
+        <script async src="/assets/materialize/1.0.0/js/materialize.min.js"></script>
 
         <style>
             body {
@@ -372,11 +372,11 @@
         const oldChats = localStorage.getItem("chats");
         const chats = oldChats ? JSON.parse(oldChats) : []; // oldChats may be undefined, which throws error if passed into JSON.parse
         const oldPeerIds = localStorage.getItem("peerIds") ? localStorage.getItem("peerIds").split(',') : [];
-        const message_audio = new Audio('/assets/bubble.wav');
-        const ringtone_audio = new Audio('/assets/ringtone.mp3');
+        const message_audio = new Audio('/assets/sound/bubble.wav');
+        const ringtone_audio = new Audio('/assets/sound/ringtone.mp3');
         ringtone_audio.loop = true;
-        const online_audio = new Audio('/assets/enter.mp3');
-        const offline_audio = new Audio('/assets/leave.mp3');
+        const online_audio = new Audio('/assets/sound/enter.mp3');
+        const offline_audio = new Audio('/assets/sound/leave.mp3');
 
         function searchToObj(search) {
           const obj = {};
