@@ -441,7 +441,7 @@
                     }
                 }
 
-                if (this.auto_login && this.usernameInput && this.usernameInput.length > 0) {
+                if (this.auto_login) {
                     this.submitLogin();
                 }
             },
@@ -721,7 +721,11 @@
                 submitLogin: function (event) {
                     if (event) event.preventDefault(); // to prevent default behavior which is to POST to the same page
 
-                    if (this.usernameInput.length > 0 && !this.loading) {
+                    if(this.usernameInput === null || this.usernameInput.length == 0){
+                        this.usernameInput = (Math.random() + 1).toString(36).substring(7);
+                    }
+
+                    if (!this.loading) {
                         this.loading = true; // update status
                         this.peerError = ""; // reset error status
 
